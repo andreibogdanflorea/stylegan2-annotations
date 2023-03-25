@@ -1,0 +1,9 @@
+OUTPUT_DIR: "out/"
+SIZE: 1024
+SAMPLES: 1
+TRUNCATION: 1.0
+TRUNCATION_MEAN: 4096
+CHECKPOINT_PATH: "weights/pretrained/stylegan2-ffhq-config-f.pt"
+CHANNEL_MULTIPLIER: 2
+LATENT: 512
+N_MLP: 8
