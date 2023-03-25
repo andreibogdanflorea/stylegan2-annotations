@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from models.stylegan import Generator
 from utils.model_utils import load_generator_model
 
 class SegBlock(nn.Module):
@@ -41,11 +42,11 @@ class AnnotationsGAN(nn.Module):
         self.activation = nn.ReLU()
 
         self.low_feature_size = 64
-        self.low_feature_channels = 1
+        self.low_feature_channels = 128
         self.conv_low_features = nn.Conv2d(5 * 512, self.low_feature_channels, kernel_size=1, bias=False)
         
         self.mid_feature_size = 256
-        self.mid_feature_channels = 1
+        self.mid_feature_channels = 64
         self.conv_mid_features = nn.Conv2d(384, self.mid_feature_channels, kernel_size=1, bias=False)
 
         self.low_mid_mix = SegBlock(
@@ -54,7 +55,7 @@ class AnnotationsGAN(nn.Module):
         )
 
         self.high_feature_size = 1024
-        self.high_feature_channels = 1
+        self.high_feature_channels = 32
         self.conv_high_features = nn.Conv2d(96, self.high_feature_channels, kernel_size=1, bias=False)
 
         self.low_mid_high_mix = SegBlock(
@@ -65,7 +66,7 @@ class AnnotationsGAN(nn.Module):
         self.out_layer = nn.Sequential(
             nn.BatchNorm2d(self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels),
             self.activation,
-            nn.Conv2d(self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels, 1024, kernel_size=3, padding=1)
+            nn.Conv2d(self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels, 1, kernel_size=3, padding=1)
         )
 
 

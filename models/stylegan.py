@@ -530,6 +530,7 @@ class Generator(nn.Module):
             out = conv1(out, latent[:, i], noise=noise1)
             out = conv2(out, latent[:, i + 1], noise=noise2)
             out_features.append(out)
+
             skip = to_rgb(out, latent[:, i + 2], skip)
 
             i += 2
