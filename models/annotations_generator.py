@@ -110,7 +110,7 @@ class AnnotationsGAN(nn.Module):
         mid_features = self.conv_mid_features(mid_features)
 
         low_mid_features = torch.cat([low_features, mid_features], dim=1)
-        low_mid_features = self.low_mid_mix(low_mid_features)
+        #low_mid_features = self.low_mid_mix(low_mid_features)
         low_mid_features = F.interpolate(low_mid_features, size=self.high_feature_size, mode=upsampling_mode)
 
         high_features = [
@@ -121,7 +121,7 @@ class AnnotationsGAN(nn.Module):
         high_features = self.conv_high_features(high_features)
 
         low_mid_high_features = torch.cat([low_mid_features, high_features], dim=1)
-        low_mid_high_features = self.low_mid_high_mix(low_mid_high_features)
+        #low_mid_high_features = self.low_mid_high_mix(low_mid_high_features)
 
         out = self.out_layer(low_mid_high_features)
 
