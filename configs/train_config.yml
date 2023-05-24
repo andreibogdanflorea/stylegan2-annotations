@@ -1,0 +1,31 @@
+DATASET_TRAIN:
+  PATH: "/home/andrei/Documents/licenta/face_seg_dataset/train"
+  SHUFFLE: true
+
+DATASET_VALID:
+  PATH: "/home/andrei/Documents/licenta/face_seg_dataset/val"
+  SHUFFLE: false
+
+TRAIN_SETUP:
+  DEVICES: [0]
+  WORKERS: 1
+  BATCH_SIZE: 1
+  BEGIN_EPOCH: 0
+  END_EPOCH: 300
+  SAVE_FREQ: 1
+  OPTIMIZER: "adam"
+  LEARNING_RATE: 0.005
+  WEIGHT_DECAY: 0.000
+  PRECISION: "mixed"
+  RESUME: false
+  RESUME_CHECKPOINT: ""
+
+MODEL:
+  PRETRAINED: "weights/pretrained/ffhq-256.pt"
+  SIZE: 256
+  TRUNCATION: 0.7
+  TRUNCATION_MEAN: 4096
+  CHANNEL_MULTIPLIER: 2
+  LATENT: 512
+  N_MLP: 8
+  N_CLASSES: 19

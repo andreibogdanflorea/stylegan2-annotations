@@ -1,9 +1,6 @@
 DATASET_INFERENCE:
-  OUTPUT_DIR: "../sampled_synthetic_dataset/"
-  SAMPLES: 100
-
-CHECKPOINT:
-  PATH: "weights/experiments/22_04_2023__23_52_45/checkpoint_14.pth"
+  OUTPUT_DIR: "/home/andrei/Documents/licenta/face_seg_dataset2"
+  SAMPLES: 200
 
 MODEL:
   PRETRAINED: "weights/pretrained/ffhq-256.pt"

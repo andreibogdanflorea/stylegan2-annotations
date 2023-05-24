@@ -1,12 +1,16 @@
 import argparse
 from yaml import safe_load
 import os
-
+import cv2
 import torch
 from torchvision import utils
+from tqdm import tqdm
+import numpy as np
+
 from models.stylegan import Generator
 from models.annotations_generator import AnnotationsGAN
-from tqdm import tqdm
+from utils.plotting_utils import blend_image_and_mask, mask_to_rgb
+from utils.model_utils import load_generator_model
 
 
 def parse_args():
@@ -28,16 +32,16 @@ def parse_config(config_file: str) -> dict:
     return config
 
 def generate(config, G, device, mean_latent):
-    output_dir = config["OUTPUT_DIR"]
+    output_dir = config["DATASET_INFERENCE"]["OUTPUT_DIR"]
     os.makedirs(output_dir, exist_ok=True)
 
     with torch.no_grad():
         G.eval()
-        for i in tqdm(range(config["SAMPLES"])):
-            sample_z = torch.randn(1, config["LATENT"], device=device)
+        for i in tqdm(range(config["DATASET_INFERENCE"]["SAMPLES"])):
+            sample_z = torch.randn(1, config["MODEL"]["LATENT"], device=device)
 
-            sample, _ = G(
-                [sample_z], truncation=config["TRUNCATION"], truncation_latent=mean_latent
+            sample, latent = G(
+                [sample_z], truncation=config["MODEL"]["TRUNCATION"], truncation_latent=mean_latent, return_latents=True
             )
 
             utils.save_image(
@@ -55,24 +59,68 @@ if __name__ == "__main__":
     config = parse_config(args.config)
 
     # G = Generator(
-    #     config["SIZE"], config["LATENT"], config["N_MLP"], channel_multiplier=config["CHANNEL_MULTIPLIER"]
+    #     config["MODEL"]["SIZE"],
+    #     config["MODEL"]["LATENT"],
+    #     config["MODEL"]["N_MLP"],
+    #     channel_multiplier=config["MODEL"]["CHANNEL_MULTIPLIER"]
     # ).to(device)
-    # checkpoint = torch.load(config["CHECKPOINT_PATH"])
+    # checkpoint = torch.load(config["MODEL"]["PRETRAINED"])
 
     # G.load_state_dict(checkpoint["g_ema"])
 
-    # if config["TRUNCATION"] < 1.0:
+    # if config["MODEL"]["TRUNCATION"] < 1.0:
     #     with torch.no_grad():
-    #         mean_latent = G.mean_latent(config["TRUNCATION_MEAN"])
+    #         mean_latent = G.mean_latent(config["MODEL"]["TRUNCATION_MEAN"])
     # else:
     #     mean_latent = None
 
     # generate(config, G, device, mean_latent)
 
-    annot_gan = AnnotationsGAN(config).to(device)
+    annot_gan = AnnotationsGAN(config, inference=True)
+    annot_gan = torch.nn.DataParallel(annot_gan, device_ids=[0]).cuda()
 
-    sample_z = torch.randn(1, config["LATENT"], device=device)
-    annot_gan([sample_z])
+    model_state_file = config["CHECKPOINT"]["PATH"]
+    checkpoint = torch.load(model_state_file)
+    if "state_dict" in checkpoint.keys():
+        state_dict = checkpoint["state_dict"]
+        annot_gan.load_state_dict(state_dict)
+    else:
+        annot_gan.module.load_state_dict(model_state_file)
+    
+    annot_gan.eval()
 
-    import time
-    time.sleep(10)
+    if config["MODEL"]["TRUNCATION"] < 1.0:
+        with torch.no_grad():
+            mean_latent = annot_gan.module.G.mean_latent(config["MODEL"]["TRUNCATION_MEAN"])
+    else:
+        mean_latent = None
+
+    output_dir = config["DATASET_INFERENCE"]["OUTPUT_DIR"]
+    os.makedirs(output_dir, exist_ok=True)
+
+    for i in tqdm(range(config["DATASET_INFERENCE"]["SAMPLES"])):
+        sample_z = torch.randn(1, config["MODEL"]["LATENT"], device=device)
+        
+        with torch.no_grad():
+            image, logits = annot_gan([sample_z], mean_latent=mean_latent, return_image=True)
+
+        preds = torch.argmax(logits, dim=1)[0]
+
+        utils.save_image(
+            image,
+            f"{output_dir}/{str(i).zfill(6)}.png",
+            nrow=1,
+            normalize=True,
+            range=(-1, 1),
+        )
+
+        image = cv2.imread(f"{output_dir}/{str(i).zfill(6)}.png")
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        mask = preds.detach().cpu().numpy()
+        rgb_mask = mask_to_rgb(mask)
+
+        blended_image = blend_image_and_mask(image, rgb_mask)
+
+        cv2.imwrite(f"{output_dir}/{str(i).zfill(6)}.png", cv2.cvtColor(rgb_mask, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(f"{output_dir}/{str(i).zfill(6)}.png", cv2.cvtColor(blended_image, cv2.COLOR_RGB2BGR))
