@@ -42,12 +42,14 @@ class AnnotationsGAN(nn.Module):
         self.activation = nn.ReLU()
 
         self.low_feature_size = 16
-        self.low_feature_channels = 64
+        self.low_feature_channels = 128
         self.conv_low_features = nn.Conv2d(3 * 512, self.low_feature_channels, kernel_size=1, bias=False)
+        self.conv_low_features2 = nn.Conv2d(self.low_feature_channels, config["MODEL"]["N_CLASSES"], kernel_size=1, bias=False)
         
         self.mid_feature_size = 64
         self.mid_feature_channels = 32
         self.conv_mid_features = nn.Conv2d(2 * 512, self.mid_feature_channels, kernel_size=1, bias=False)
+        self.conv_mid_features2 = nn.Conv2d(self.mid_feature_channels, config["MODEL"]["N_CLASSES"], kernel_size=1, bias=False)
 
         self.low_mid_mix = SegBlock(
             self.low_feature_channels + self.mid_feature_channels,
@@ -55,8 +57,9 @@ class AnnotationsGAN(nn.Module):
         )
 
         self.high_feature_size = 256
-        self.high_feature_channels = 16
+        self.high_feature_channels = 32
         self.conv_high_features = nn.Conv2d(256 + 128, self.high_feature_channels, kernel_size=1, bias=False)
+        self.conv_high_features2 = nn.Conv2d(self.high_feature_channels, config["MODEL"]["N_CLASSES"], kernel_size=1, bias=False)
 
         self.low_mid_high_mix = SegBlock(
             self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels,
@@ -64,15 +67,17 @@ class AnnotationsGAN(nn.Module):
         )
 
         self.out_layer = nn.Sequential(
-            nn.BatchNorm2d(self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels),
+            nn.BatchNorm2d(3 * config["MODEL"]["N_CLASSES"]),
             self.activation,
             nn.Conv2d(
-                self.low_feature_channels + self.mid_feature_channels + self.high_feature_channels,
+                3 * config["MODEL"]["N_CLASSES"],
                 config["MODEL"]["N_CLASSES"],
                 kernel_size=3,
                 padding=1
             )
         )
+
+        self.relu = nn.ReLU()
 
 
     def forward(self, z, return_image=False, mean_latent=None, upsampling_mode='bilinear'):
@@ -100,6 +105,9 @@ class AnnotationsGAN(nn.Module):
         ]
         low_features = torch.cat(low_features, dim=1)
         low_features = self.conv_low_features(low_features)
+        low_features = self.relu(low_features)
+        low_features = self.conv_low_features2(low_features)
+
         low_features = F.interpolate(low_features, size=self.mid_feature_size, mode=upsampling_mode)
 
         mid_features = [
@@ -108,6 +116,8 @@ class AnnotationsGAN(nn.Module):
         ]
         mid_features = torch.cat(mid_features, dim=1)
         mid_features = self.conv_mid_features(mid_features)
+        mid_features = self.relu(mid_features)
+        mid_features = self.conv_mid_features2(mid_features)
 
         low_mid_features = torch.cat([low_features, mid_features], dim=1)
         #low_mid_features = self.low_mid_mix(low_mid_features)
@@ -119,6 +129,8 @@ class AnnotationsGAN(nn.Module):
         ]
         high_features = torch.cat(high_features, dim=1)
         high_features = self.conv_high_features(high_features)
+        high_features = self.relu(high_features)
+        high_features = self.conv_high_features2(high_features)
 
         low_mid_high_features = torch.cat([low_mid_features, high_features], dim=1)
         #low_mid_high_features = self.low_mid_high_mix(low_mid_high_features)
