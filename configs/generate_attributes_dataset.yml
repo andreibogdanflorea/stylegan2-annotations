@@ -1,14 +1,12 @@
 DATASET_INFERENCE:
-  OUTPUT_DIR: "../sampled_synthetic_dataset_v2/"
-  SAMPLES: 100
-
-CHECKPOINT:
-  PATH: "weights/experiments/25_05_2023__22_07_09/model_best.pth"
+  SAVE_PATH: "/home/andrei/Documents/licenta/attributes_train_dataset/"
+  SAMPLES: 100000
+  BATCH_SIZE: 1
 
 MODEL:
   PRETRAINED: "weights/pretrained/ffhq-256.pt"
   SIZE: 256
-  TRUNCATION: 0.7
+  TRUNCATION: 1.0
   TRUNCATION_MEAN: 4096
   CHANNEL_MULTIPLIER: 2
   LATENT: 512

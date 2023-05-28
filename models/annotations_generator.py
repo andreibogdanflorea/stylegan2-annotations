@@ -141,5 +141,3 @@ class AnnotationsGAN(nn.Module):
             return image, out
         
         return out
-
-        

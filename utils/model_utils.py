@@ -10,6 +10,6 @@ def load_generator_model(config, device='cuda'):
     ).to(device)
     checkpoint = torch.load(config["MODEL"]["PRETRAINED"])
 
-    G.load_state_dict(checkpoint["g_ema"])
+    G.load_state_dict(checkpoint["g_ema"], strict=False)
 
     return G

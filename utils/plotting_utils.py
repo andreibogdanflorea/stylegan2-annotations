@@ -38,6 +38,6 @@ def blend_image_and_mask(
     mask_rgb: np.ndarray
 ) -> np.ndarray:
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    composite_image = cv2.addWeighted(img, 1.0, mask_rgb, 0.5, 0)
+    composite_image = cv2.addWeighted(img, 1.0, mask_rgb, 0.3, 0)
 
     return composite_image

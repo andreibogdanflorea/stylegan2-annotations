@@ -8,6 +8,7 @@ from torchvision import utils
 from torch.utils.data import DataLoader
 from torch.cuda.amp import GradScaler, autocast
 import numpy as np
+from torchmetrics.classification import MulticlassF1Score
 
 from logger import create_logger
 from tensorboardX import SummaryWriter
@@ -18,6 +19,7 @@ from models.annotations_generator import AnnotationsGAN
 from data_parsing.face_seg_dataset import FaceSegDataset
 from logger import create_logger
 from utils.plotting_utils import blend_image_and_mask, mask_to_rgb
+from utils.data_utils import label_mapping
 
 
 def parse_args():
@@ -61,10 +63,28 @@ class Trainer:
             shuffle=self.config["DATASET_VALID"]["SHUFFLE"]
         )
 
-        self.loss = torch.nn.CrossEntropyLoss()
+        # self.loss = torch.nn.CrossEntropyLoss()
+        samples_per_class = [0] * self.config["MODEL"]["N_CLASSES"]
+        for _, mask in self.train_loader:
+            mask = mask.numpy()
+            for i in range(self.config["MODEL"]["N_CLASSES"]):
+                samples_per_class[i] += np.sum(mask == i)
+
+        samples_per_class = [
+            num_samples if num_samples > 0 else max(samples_per_class)
+            for num_samples in samples_per_class
+            
+        ]
+
+        beta = 0.9999
+        effective_num = 1.0 - np.power(beta, samples_per_class)
+        weights = (1.0 - beta) / np.array(effective_num)
+        weights = weights / np.sum(weights) * self.config["MODEL"]["N_CLASSES"]
+        weights = torch.tensor(weights, device="cuda").float()
+        self.loss = torch.nn.CrossEntropyLoss(weight=weights).cuda()
 
         for name, param in self.model.named_parameters():
-            if name.startswith("module.G."):
+            if name.startswith("module.G.") and not name.startswith("module.G.seg_"):
                 param.requires_grad = False
         
         
@@ -91,8 +111,24 @@ class Trainer:
         
         return config
     
-    def save_checkpoint(self, states: dict, filename: str) -> None:
+    def save_checkpoint(
+        self, 
+        states: dict,
+        global_f1: np.float32,
+        per_class_f1: np.ndarray
+    ) -> None:
+        filename = "model_best.pth"
         torch.save(states, os.path.join(self.save_location, filename))
+
+        metrics_dump_file = os.path.join(self.save_location, "val_metrics.txt")
+        with open(metrics_dump_file, "w") as f_metrics:
+            f_metrics.write("Global F1: {}\n".format(global_f1))
+            f_metrics.write("Per class F1:\n")
+
+            class_names = list(label_mapping.keys())
+            for class_name, f1_score in zip(class_names, per_class_f1):
+                f_metrics.write("{}: {}\n".format(class_name, f1_score))
+
 
     def train_step(
         self,
@@ -102,6 +138,8 @@ class Trainer:
         
         self.optimizer.zero_grad(set_to_none=True)
         
+        latent = latent.permute(1, 0, 2, 3)
+
         logits = self.model(latent)
         loss = self.loss(logits, target)
         
@@ -148,6 +186,18 @@ class Trainer:
     def validate(self, epoch: int, writer_dict: dict) -> str:
         losses = AverageMeter()
 
+        global_f1_metric = MulticlassF1Score(
+            num_classes=self.config["MODEL"]["N_CLASSES"],
+            average='weighted',
+            multidim_average='global',
+            ignore_index=0
+        ).cuda()
+        per_class_f1_metric = MulticlassF1Score(
+            num_classes=self.config["MODEL"]["N_CLASSES"],
+            average='none',
+            multidim_average='global'
+        ).cuda()
+
         self.model.eval()
         with torch.no_grad():
             for latent, mask, image in tqdm(self.valid_loader):
@@ -155,10 +205,18 @@ class Trainer:
                 mask = mask.cuda(non_blocking=True)
                 loss, preds = self.valid_step(latent, mask)
 
+                global_f1_metric(preds, mask)
+                per_class_f1_metric(preds, mask)
+
                 losses.update(loss.item(), latent.size(0))
         
+        global_f1 = global_f1_metric.compute()
+        per_class_f1 = per_class_f1_metric.compute()
+
         valid_result = (
-            "Valid Epoch {} loss:{:.4f}".format(epoch, losses.avg)
+            "Valid Epoch {} loss:{:.4f}\n"
+            "Global F1: {:.4f}\n"
+            "Per class F1: {}\n".format(epoch, losses.avg, global_f1, per_class_f1)
         )
 
         image = image[0].numpy().astype(np.uint8)
@@ -179,10 +237,11 @@ class Trainer:
         writer_dict['valid_global_steps'] = global_steps + 1
         writer.flush()
 
-        return valid_result
+        return valid_result, global_f1, per_class_f1
 
     def fit(self) -> None:
         torch.backends.cudnn.benchmark = True
+        best_global_f1 = 0.0
 
         logger, tensorboard_log_dir = create_logger(self.save_location)
         writer_dict = {
@@ -212,17 +271,20 @@ class Trainer:
             logger.info(train_result)
 
             if ((epoch + 1) % self.config["TRAIN_SETUP"]["SAVE_FREQ"]) == 0:
-                valid_result = self.validate(epoch, writer_dict)
+                valid_result, global_f1, per_class_f1 = self.validate(epoch, writer_dict)
                 logger.info(valid_result)
-                
-                self.save_checkpoint(
-                    {
-                        "state_dict": self.model.state_dict(),
-                        "epoch": epoch + 1,
-                        "optimizer": self.optimizer.state_dict()
-                    },
-                    'checkpoint_{}.pth'.format(epoch)
-                )
+
+                if global_f1 > best_global_f1:
+                    best_global_f1 = global_f1
+                    self.save_checkpoint(
+                        {
+                            "state_dict": self.model.state_dict(),
+                            "epoch": epoch + 1,
+                            "optimizer": self.optimizer.state_dict()
+                        },
+                        global_f1,
+                        per_class_f1
+                    )
             
             writer_dict['writer'].flush()
             
