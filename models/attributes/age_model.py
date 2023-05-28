@@ -69,7 +69,7 @@ class AgeModel(nn.Module):
         return self.vgg(x)
     
     def get_age(self, logits):
-        predicted_age_pb = F.softmax(logits)
+        predicted_age_pb = F.softmax(logits, dim=1)
         predicted_age = torch.zeros(logits.size(0)).type_as(predicted_age_pb)
         for i in range(logits.size(0)):
             for j in range(logits.size(1)):

@@ -1,0 +1,24 @@
+DATASET:
+  PATH: "/home/andrei/Documents/licenta/attributes_train_overfit/attributes_df.pkl"
+  VALID_SPLIT: 0.2
+
+TRAIN_SETUP:
+  DEVICES: [0]
+  WORKERS: 1
+  BATCH_SIZE: 1
+  EPOCHS: 300
+  SAVE_FREQ: 1
+  OPTIMIZER: "adam"
+  LEARNING_RATE: 0.001
+  WEIGHT_DECAY: 0.0
+  PRECISION: "mixed"
+
+MODEL:
+  PRETRAINED: "weights/pretrained/ffhq-256.pt"
+  SIZE: 256
+  TRUNCATION: 0.7
+  TRUNCATION_MEAN: 4096
+  CHANNEL_MULTIPLIER: 2
+  LATENT: 512
+  N_MLP: 8
+  N_CLASSES: 19

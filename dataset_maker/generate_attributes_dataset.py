@@ -47,7 +47,7 @@ def generate(config, G, device, mean_latent):
 
     with torch.no_grad():
         G.eval()
-        for i in tqdm(range(config["DATASET_INFERENCE"]["SAMPLES"])):
+        for i in tqdm(range(config["DATASET_INFERENCE"]["SAMPLES"] // config["DATASET_INFERENCE"]["BATCH_SIZE"])):
             sample_z = torch.randn(config["DATASET_INFERENCE"]["BATCH_SIZE"], config["MODEL"]["LATENT"], device=device)
 
             sample, latents = G(
