@@ -1,0 +1,15 @@
+TEST_SETUP:
+  DEVICES: [0]
+  MAPPING_NETWORK_CHECKPOINT: "weights/controller_experiments/28_05_2023__23_56_00/model_best.pth"
+  N_TEST_SAMPLES: 100
+  SAMPLES_SAVE_DIR: "/home/andrei/Documents/licenta/controller_test_samples2"
+
+MODEL:
+  PRETRAINED: "weights/pretrained/ffhq-256.pt"
+  SIZE: 256
+  TRUNCATION: 0.9
+  TRUNCATION_MEAN: 4096
+  CHANNEL_MULTIPLIER: 2
+  LATENT: 512
+  N_MLP: 8
+  N_CLASSES: 19

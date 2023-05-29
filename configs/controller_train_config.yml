@@ -1,12 +1,15 @@
-DATASET:
-  PATH: "/home/andrei/Documents/licenta/attributes_train_overfit/attributes_df.pkl"
-  VALID_SPLIT: 0.2
+DATASET_TRAIN:
+  PATH: "/home/andrei/Documents/licenta/attributes_train/train_df.pkl"
+
+DATASET_VALID:
+  PATH: "/home/andrei/Documents/licenta/attributes_train/val_df.pkl"
 
 TRAIN_SETUP:
   DEVICES: [0]
   WORKERS: 1
-  BATCH_SIZE: 1
+  BATCH_SIZE: 16
   EPOCHS: 300
+  ITERS_PER_EPOCH: 10000
   SAVE_FREQ: 1
   OPTIMIZER: "adam"
   LEARNING_RATE: 0.001

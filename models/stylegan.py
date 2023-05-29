@@ -478,6 +478,7 @@ class Generator(nn.Module):
             input_is_latent=False,
             noise=None,
             randomize_noise=True,
+            return_mapped_style=False,
     ):
         if not input_is_latent:
             styles = [self.style(s) for s in styles]
@@ -499,6 +500,9 @@ class Generator(nn.Module):
                 )
 
             styles = style_t
+        
+        if return_mapped_style:
+            return styles
 
         if len(styles) < 2:
             inject_index = self.n_latent

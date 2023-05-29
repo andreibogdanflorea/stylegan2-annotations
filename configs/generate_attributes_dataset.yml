@@ -1,6 +1,6 @@
 DATASET_INFERENCE:
-  SAVE_PATH: "/home/andrei/Documents/licenta/attributes_train_dataset/"
-  SAMPLES: 100000
+  SAVE_PATH: "/home/andrei/Documents/licenta/attributes_train_overfit/attributes_df.pkl"
+  SAMPLES: 200
   BATCH_SIZE: 1
 
 MODEL:
